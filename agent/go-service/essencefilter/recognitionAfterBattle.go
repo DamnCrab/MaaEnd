@@ -2,6 +2,7 @@ package essencefilter
 
 import (
 	"encoding/json"
+	"image"
 	"strings"
 
 	maa "github.com/MaaXYZ/maa-framework-go/v4"
@@ -18,6 +19,40 @@ type essenceAfterBattleNthParams struct {
 type EssenceFilterAfterBattleNthRecognition struct{}
 
 var _ maa.CustomRecognitionRunner = &EssenceFilterAfterBattleNthRecognition{}
+
+// filterAfterBattleRowBoxesByColor 仅对缩略图下半区域做 EssenceColorMatch，剔除不符合当前档位颜色的候选（含全屏模板误检）。
+// 保留顺序与全屏识别结果遍历顺序一致（不做 y/x 重排）。
+func filterAfterBattleRowBoxesByColor(ctx *maa.Context, img image.Image, st *RunState, raw [][4]int) [][4]int {
+	out := make([][4]int, 0, len(raw))
+	for _, boxArr := range raw {
+		colorMatchROIW := boxArr[2]
+		colorMatchROIH := boxArr[3] - 90
+		if colorMatchROIW <= 0 || colorMatchROIH <= 0 {
+			continue
+		}
+		roi := maa.Rect{boxArr[0], boxArr[1] + 90, colorMatchROIW, colorMatchROIH}
+
+		colorMatched := false
+		for _, et := range st.EssenceTypes {
+			cDetail, err := ctx.RunRecognition("EssenceColorMatch", img, map[string]any{
+				"EssenceColorMatch": map[string]any{"roi": roi, "lower": et.Range.Lower, "upper": et.Range.Upper},
+			})
+			if err != nil {
+				continue
+			}
+			if cDetail != nil && cDetail.Hit {
+				colorMatched = true
+				break
+			}
+		}
+		if !colorMatched {
+			continue
+		}
+		out = append(out, boxArr)
+	}
+
+	return out
+}
 
 func (r *EssenceFilterAfterBattleNthRecognition) Run(ctx *maa.Context, arg *maa.CustomRecognitionArg) (*maa.CustomRecognitionResult, bool) {
 	st := getRunState()
@@ -56,15 +91,19 @@ func (r *EssenceFilterAfterBattleNthRecognition) Run(ctx *maa.Context, arg *maa.
 		return nil, false
 	}
 
-	st.RowBoxes = nil
+	raw := make([][4]int, 0, len(detail.Results.Filtered))
 	for _, res := range detail.Results.Filtered {
 		tm, ok := res.AsTemplateMatch()
 		if !ok {
 			continue
 		}
 		b := tm.Box
-		st.RowBoxes = append(st.RowBoxes, [4]int{b.X(), b.Y(), b.Width(), b.Height()})
+		raw = append(raw, [4]int{b.X(), b.Y(), b.Width(), b.Height()})
 	}
+
+	st.RowBoxes = filterAfterBattleRowBoxesByColor(ctx, arg.Img, st, raw)
+	log.Info().Str("component", "EssenceFilter").Str("recognition", "AfterBattleNthEssence").
+		Int("raw_boxes", len(raw)).Int("after_color_filter", len(st.RowBoxes)).Msg("after battle row boxes")
 
 	if st.RowIndex >= len(st.RowBoxes) {
 		return nil, false
