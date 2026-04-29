@@ -47,6 +47,20 @@
             "permission_required": true
         },
         {
+            "name": "Win32-Window-HDR",
+            "label": "$controller.Win32-Window-HDR.label",
+            "description": "$controller.Win32-Window-HDR.description",
+            "type": "Win32",
+            "win32": {
+                "class_regex": "UnityWndClass",
+                "window_regex": "Endfield",
+                "screencap": "FramePool",
+                "mouse": "SendMessageWithCursorPos",
+                "keyboard": "PostMessage"
+            },
+            "permission_required": true
+        },
+        {
             "name": "Win32-Front",
             "label": "$controller.Win32-Front.label",
             "description": "$controller.Win32-Front.description",

@@ -608,6 +608,8 @@
     "controller.Win32-Window.description": "Best compatibility, suitable for everyday use. Supports game minimization, may occasionally grab the mouse.",
     "controller.Win32-Window-Background.label": "PC-Background",
     "controller.Win32-Window-Background.description": "Pure background controller. Supports game minimization and does not grab the mouse. However, it may cause the game window to move around erratically; this does not affect usage. It is recommended to minimize the game to avoid distraction.",
+    "controller.Win32-Window-HDR.label": "PC-HDR Compatible",
+    "controller.Win32-Window-HDR.description": "HDR-compatible mode for cases where screenshots show incorrect colors when the game has HDR enabled. Supports game minimization, may occasionally grab the mouse. Requires Windows 10 1903 or later.",
     "controller.Win32-Front.label": "PC-Foreground",
     "controller.Win32-Front.description": "Foreground control. Requires the game window to remain in the foreground and unobstructed; will fully grab the mouse.",
     "controller.ADB.label": "Android",

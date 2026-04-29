@@ -443,6 +443,8 @@
     "controller.Win32-Window.description": "相容性最佳，適合日常使用。支援遊戲最小化，會間接性搶占滑鼠",
     "controller.Win32-Window-Background.label": "電腦端-後台",
     "controller.Win32-Window-Background.description": "純後台控制器。支援遊戲最小化，不搶占滑鼠。但可能導致遊戲視窗亂飛，不影響使用，建議將遊戲最小化以避免干擾",
+    "controller.Win32-Window-HDR.label": "電腦端-HDR 相容",
+    "controller.Win32-Window-HDR.description": "HDR 相容模式，適用於遊戲開啟 HDR 時截圖顏色異常的情況。支援遊戲最小化，會間接性搶占滑鼠。需要 Windows 10 1903 或更高版本",
     "controller.Win32-Front.label": "電腦端-前台",
     "controller.Win32-Front.description": "前台控制。需要遊戲視窗保持在最前且不被遮擋，會完全搶占滑鼠",
     "controller.ADB.label": "安卓端",
