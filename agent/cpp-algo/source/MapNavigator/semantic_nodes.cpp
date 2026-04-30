@@ -4,6 +4,7 @@
 #include <limits>
 #include <thread>
 
+#include <MaaFramework/MaaAPI.h>
 #include <MaaUtils/Logger.h>
 
 #include "action_wrapper.h"
@@ -21,7 +22,6 @@ namespace semantic_nodes
 
 namespace
 {
-
 
 void StopMotionAndCommitment(const Context& ctx)
 {
@@ -324,8 +324,8 @@ Result ConsumeHeadingNodesImpl(const Context& ctx)
                 break;
             }
             const TurnCommandResult turn_result = ctx.motion_controller->ApplySteering(residual);
-            LogInfo << "Heading-only node turn step." << VAR(step) << VAR(target_heading) << VAR(virtual_heading)
-                    << VAR(residual) << VAR(turn_result.issued) << VAR(turn_result.issued_delta_degrees);
+            LogInfo << "Heading-only node turn step." << VAR(step) << VAR(target_heading) << VAR(virtual_heading) << VAR(residual)
+                    << VAR(turn_result.issued) << VAR(turn_result.issued_delta_degrees);
             if (!turn_result.issued) {
                 aborted = true;
                 break;
@@ -457,6 +457,54 @@ Result HandleArrivalSemantic(const Context& ctx, const Waypoint& waypoint, doubl
         }
         else {
             SelectPhaseForCurrentWaypoint(ctx, "portal_entered");
+        }
+
+        result.consumed = true;
+        result.stay_in_current_tick = true;
+        return result;
+    }
+
+    if (waypoint.action == ActionType::COLLECT || waypoint.action == ActionType::DIG) {
+        const bool is_dig = waypoint.action == ActionType::DIG;
+        const char* tag = is_dig ? "DIG" : "COLLECT";
+        const char* entry = is_dig ? kDefaultDigEntry : kDefaultCollectEntry;
+        const char* override_json = is_dig ? kDigPipelineOverride : kCollectPipelineOverride;
+        const int32_t post_sleep_ms = is_dig ? kDigPostSleepMs : kCollectPostSleepMs;
+        const char* completed_reason = is_dig ? "dig_completed" : "collect_completed";
+
+        StopMotionAndCommitment(ctx);
+
+        if (ctx.maa_context == nullptr) {
+            LogError << "Action: " << tag << " triggered but maa_context is null." << VAR(actual_distance);
+            result.request_failure = true;
+            result.failure_reason = is_dig ? "dig_context_missing" : "collect_context_missing";
+            result.failure_log_message = "MaaContext is null when dispatching collect/dig subtask.";
+            return result;
+        }
+
+        LogInfo << "Action: " << tag << " triggered, dispatching subtask." << VAR(entry) << VAR(actual_distance);
+        const MaaTaskId sub_id = MaaContextRunTask(ctx.maa_context, entry, override_json);
+        if (sub_id == MaaInvalidId) {
+            LogError << "Action: " << tag << " subtask failed to dispatch." << VAR(entry) << VAR(actual_distance);
+            result.request_failure = true;
+            result.failure_reason = is_dig ? "dig_dispatch_failed" : "collect_dispatch_failed";
+            result.failure_log_message = "MaaContextRunTask returned MaaInvalidId for collect/dig subtask.";
+            return result;
+        }
+
+        LogInfo << "Action: " << tag << " subtask returned." << VAR(sub_id);
+        utils::SleepFor(post_sleep_ms);
+
+        ctx.session->NoteCanonicalFinalGoalConsumed(arrived_absolute_node_idx, *ctx.position, completed_reason);
+        ctx.session->AdvanceToNextWaypoint(waypoint.action, completed_reason);
+        ctx.session->ResetProgress();
+        ctx.runtime_state->route.ResetTracking();
+
+        if (!ctx.session->HasCurrentWaypoint()) {
+            ctx.session->NoteRouteTailConsumed(*ctx.position, "route_tail_consumed");
+        }
+        else {
+            SelectPhaseForCurrentWaypoint(ctx, completed_reason);
         }
 
         result.consumed = true;
